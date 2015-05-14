@@ -1,0 +1,54 @@
+Skills Improvement
+========================================================
+
+We will start by loadding the necessary packages and data frame
+
+```{r}
+x<-read.csv("skill-improvement.csv")
+x<-x[x$attempt==1,]
+library(lubridate)
+```
+
+We write a function to compare the score of each students in two consecutive days.
+'''{r}
+'''
+
+```{r}
+compareDays2<-function(day1,day2,skill){
+score1<-x[day(x$created_at)==day1,]
+score1<-score1[score1$skill_id==skill,]
+score2<-x[day(x$created_at)==day2,]
+score2<-score2[score2$skill_id==skill,]
+scoreEach1<-vector(length=length(unique(score1$student_id)))
+for (i in 1:length(scoreEach1)){
+  scoreEach1[i]<-mean(score1[score1$student_id==unique(score1$student_id)[i],6])
+  if (scoreEach1[i]>0.8){
+    scoreEach1[i]<-0.8
+  }
+}
+scoreEach2<-vector(length=length(unique(score1$student_id)))
+for (i in 1:length(scoreEach1)){
+  if (sum(score2$student_id==unique(score1$student_id)[i])==0){
+      scoreEach2[i]<-NA}
+  else{
+      scoreEach2[i]<-mean(score2[score2$student_id==unique(score1$student_id)[i],6])
+      if (scoreEach2[i]>0.8){
+        scoreEach2[i]<-0.8
+      }
+  }
+}
+index<-!is.na(scoreEach2)
+par(mfrow=c(1,2))
+hist(scoreEach1[index])
+hist(scoreEach2[index])
+t.test(scoreEach2[index],scoreEach1[index],paired=TRUE)
+
+}
+howOften<-function(student){
+  return(sum(x$student_id ==student))
+}
+for (i in 1:length(unique(x$student_id))){
+    freq[i] <- howOften(unique(x$student_id)[i])
+}
+```
+

@@ -1,0 +1,200 @@
+---
+title: "Skill Improvement 19/04/2015"
+author: "Pite"
+date: "Friday, April 17, 2015"
+output: pdf_document
+---
+
+This document will explore how each student would improve in the second day a skill is assigned. The following function is how this analysis is implemented in R.
+
+```{r}
+setwd("C:/Users/primavista/Desktop/Flipped Data")
+x<-read.csv("output.csv")
+library(lubridate)
+library(parsedate)
+library(arm)
+x[,5]<-day(as.Date(x[,5],'%d/%m/%y'))
+```
+We roughly approximate the mean of each day
+```{r,echo=FALSE}
+        y<-x[x$attempt==1,]
+        y<-y[y$skill_id==640,]
+        y<-y[order(y[,5]),]
+        index<-((y$created_at)==11)
+        index2<-((y$created_at)==12)
+        firstDay<-y[index,]
+        secondDay<-y[index2,]   
+        print('Accuracy of day 11 skill 640 is')
+        print(mean(firstDay[,6]))
+        print('Accuracy of day 12 skill 640 is')
+        print(mean(secondDay[,6]))     
+        y<-x[x$attempt==1,]
+        y<-y[y$skill_id==644,]
+        y<-y[order(y[,5]),]
+        index<-((y$created_at)==10)
+        index2<-((y$created_at)==12)
+        firstDay<-y[index,]
+        secondDay<-y[index2,]   
+        print('Accuracy of day 10 skill 644 is')
+        print(mean(firstDay[,6]))
+        print('Accuracy of day 12 skill 644 is')
+        print(mean(secondDay[,6]))    
+```
+We still haven't seen much difference. We want to get more information of what is going on with our expected data.
+```{r}
+compareDays<-function(day1,day2,skillId,low=0,high=1.0,minAttempt=0,maxAttempt=5){
+        y<-x[x$attempt==1,]
+        y<-y[y$skill_id==skillId,]
+        y<-y[order(y[,5]),]
+        index<-((y$created_at)==day1)
+        index2<-((y$created_at)==day2)
+        firstDay<-y[index,]
+        secondDay<-y[index2,]   
+        meanEach<-vector(length=length(unique(firstDay$student_id)))
+        i<-1
+        for (student in unique(firstDay$student_id)){
+                meanEach[i]=mean(firstDay[firstDay$student_id==student,]$is_correct,na.rm=TRUE)
+                i<-i+1
+        }
+        lowIndex<- (meanEach<=high) & (meanEach>=low)
+        meanEach<-meanEach[lowIndex]
+        lowScore<-unique(firstDay$student_id)[lowIndex]
+        difference<-vector(length=length(unique(lowScore)))
+        firstDayAttempt<-vector(length=length(unique(lowScore)))
+        i<-1
+        for (student in lowScore){
+                firstDayAttempt[i]<-sum(firstDay$student_id==student)
+                if (sum(secondDay$student_id==student)==0){
+                        difference[i]<-NA}
+                else if (sum(secondDay$student_id==student)<minAttempt |sum(secondDay$student_id==student)>maxAttempt){
+                        difference[i]<-NA}
+                else{
+                        difference[i]<-mean(secondDay[secondDay$student_id==student,]$is_correct)-meanEach[i]
+                }
+                i<-(i+ 1)
+        }
+        exclude<-is.na(difference)
+        difference<-difference[!exclude]
+        firstDayAttempt<-firstDayAttempt[!exclude]
+        print('mean of the number of each student\'s attempts on the first day')
+        print(mean(firstDayAttempt))
+        print('Total number of students included in analysis')
+        print(length(firstDayAttempt))
+        par(mfrow=c(1,2))
+        barplot(summary(as.factor(round((subset(meanEach,!exclude)),2))),las=2,ylim=c(0,length(difference)),col='blue')
+        barplot(summary(as.factor(round((subset(meanEach,!exclude))+difference,2))),las=2,ylim=c(0,length(difference)),col='blue')
+        print(t.test(subset(meanEach,!exclude)+difference,subset(meanEach,!exclude),paired=TRUE))
+}
+```
+Basically, what this code does is to choose the data with the following criteria
+
++  exclude all attempts that is repeated
+*  choose those attempts on the problem with skill_id as skillId(specify in the argument)
+*  exclude students whose the number of attempts on the second day is not in $[minAttempt,maxAttempt]$ and those that does not have any attempt on the second day
+
+Then, we plot a histrogram for each day and perform a t.test (with paired observations) to see if the difference between the two groups is statistically significant
+
+\pagebreak
+Now, we will analyse the mean of each student from each day and compare them(with no restriction on first day's accuracy and the number of attempts on second day.)
+```{r, fig.width=4, fig.height=3}
+compareDays(day1=11,day2=12,skillId=640)
+#for now we just focus on the pattern from day 11,12
+```
+The difference is not so significant as the confident interval contains 0. This could be due to the fact that there is quite a small(typically 2-3 questions/person) number of questions from skill 640 assigned to each student which makes the rate of accuracy on the second day unstable(for the first day majority of students tend to do all 5). Also, there are only 2 students with at least 4 attempts on the second day.
+\pagebreak
+So, we will only select students that have at least two attempts on the second day.
+```{r, fig.width=4, fig.height=3}
+compareDays(day1=11,day2=12,skillId=640,minAttempt=2)
+#for now we just focus on the pattern from day 11,12
+```
+This turns out to have quite a statistical significant with the estimate of 6% increase in accuracy but if we take minAttempt=3 the significant will disappear. We could argue that this is due to the fact that there are only 29 students used in our analysis. Then, we want to see if there is a different effect on students with different score on the first day. We will analyse in two groups, (<=80%) and (>80% i.e. 100%).
+\pagebreak
+```{r, fig.width=4, fig.height=3}
+compareDays(day1=11,day2=12,skillId=640,high=0.8,minAttempt=2)
+#for now we just focus on the pattern from day 11,12
+```
+We can see, from the histrograms, that in this case the rate of accuracy tends to increase for people with accuracy <= 80% in the first day.
+\pagebreak
+Now we can see what happens to those with 100% accuracy on the first day
+```{r, fig.width=4, fig.height=3}
+compareDays(day1=11,day2=12,skillId=640,low=0.81,minAttempt=2)
+#for now we just focus on the pattern from day 11,12
+```
+We can see that there is a significant decline. Judging from the histrogram, the decrease in accuracy is caused by those who made one mistake on the second day.
+
+The problem in this analysis is due to the fact that there is quite a small attempts(for each student) on the second day. Alternatively, instead of taking scores for each individuals, we subset only students that is active on both days. The main assumption of this analysis is that two attempts from the same day would be independent and the same in distribution with certain probability.
+```{r,echo=FALSE}
+compareDays2<-function(day1,day2,skillId){
+        y<-x[x$attempt==1,]
+        y<-y[y$skill_id==skillId,]
+        y<-y[order(y[,5]),]
+        index<-((y$created_at)==day1)
+        index2<-((y$created_at)==day2)
+        firstDay<-y[index,]
+        secondDay<-y[index2,]   
+        i<-1
+        active<-vector()
+        for (student in unique(firstDay$student_id)){
+                if (sum((secondDay$student_id== student))!=0){
+                   active<-rbind(active,student)        
+                }
+        }
+        score1<-firstDay[firstDay$student_id %in% active,6]
+        score2<-secondDay[secondDay$student_id %in% active,6]
+        print(binom.test(sum(score2),n=length(score2),p=mean(score1)))
+}
+compareDays2(11,12,640)
+```
+It turns out that there is not so much significant effect on the matter. This accepts the hypothesis that two days have the same mean with the p-value=0.893(normally reject at p=0.05). It might also be concluded that the rate of accuracy does not decrease even if two skills is assinged on the second day(arguably make the quest harder). 
+
+#More graphs
+```{r,echo=FALSE}
+plotDays<-function(day1,day2,skillId,low=0,high=1.0,minAttempt=0,maxAttempt=5){
+        y<-x[x$attempt==1,]
+        y<-y[y$skill_id==skillId,]
+        y<-y[order(y[,5]),]
+        index<-((y$created_at)==day1)
+        index2<-((y$created_at)==day2)
+        firstDay<-y[index,]
+        secondDay<-y[index2,]   
+        meanEach<-vector(length=length(unique(firstDay$student_id)))
+        i<-1
+        for (student in unique(firstDay$student_id)){
+                meanEach[i]=mean(firstDay[firstDay$student_id==student,]$is_correct,na.rm=TRUE)
+                i<-i+1
+        }
+        lowIndex<- (meanEach<=high) & (meanEach>=low)
+        meanEach<-meanEach[lowIndex]
+        lowScore<-unique(firstDay$student_id)[lowIndex]
+        difference<-vector(length=length(unique(lowScore)))
+        firstDayAttempt<-vector(length=length(unique(lowScore)))
+        i<-1
+        for (student in lowScore){
+                firstDayAttempt[i]<-sum(firstDay$student_id==student)
+                if (sum(secondDay$student_id==student)==0){
+                        difference[i]<-NA}
+                else if (sum(secondDay$student_id==student)<minAttempt |sum(secondDay$student_id==student)>maxAttempt){
+                        difference[i]<-NA}
+                else{
+                        difference[i]<-mean(secondDay[secondDay$student_id==student,]$is_correct)-meanEach[i]
+                }
+                i<-(i+ 1)
+        }
+        exclude<-is.na(difference)
+        difference<-difference[!exclude]
+        firstDayAttempt<-firstDayAttempt[!exclude]
+        barplot(summary(as.factor(round((subset(meanEach,!exclude))+difference,2))),las=2,ylim=c(0,length(difference)),col='blue')
+}
+```
+# Frequency of students accuracy on the first day(11th)
+```{r, fig.width=4, fig.height=3}
+plotDays(11,11,640)
+```
+# Frequency of students accuracy on the second day(12th), provided at there are two attempts on second day
+```{r, fig.width=4, fig.height=3}
+plotDays(11,12,640,minAttempt=2,maxAttempt=2)
+```
+#Frequency of students accuracy on the second day(12th), provided at there are three attempts on second day
+```{r, fig.width=4, fig.height=3}
+plotDays(11,12,640,minAttempt=3,maxAttempt=3)
+```

@@ -1,0 +1,9 @@
+library(httr)
+library(ROAuth)
+homeTL=GET("api-qa.flipped.io/data-scientist/answer-history?course_id=9&start_date=2015-04-01&end_date=2015-04-02")
+library(jsonlite)
+json1=content(homeTL)
+json2=jsonlite::fromJSON(toJSON(json1))
+head(json2$results)
+x<-json2$results
+head(x[,2])

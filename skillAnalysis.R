@@ -1,0 +1,10 @@
+x<-read.csv('student-history.txt')
+colnames(x)[1]<-"question_id"
+library(lubridate)
+library(parsedate)
+firstDay<-x[day(x[,5])==6,]
+secondDay<-x[day(x[,5])==8,]
+'''unique(x[,4])
+unique(day(x[x$skill_id==641,5]))
+'''
+floor_date(parse_iso_8601("2015-04-04T12:46:35.894Z"),"day")
